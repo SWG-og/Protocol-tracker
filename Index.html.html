@@ -1,0 +1,598 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#070a07">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="Protocol">
+<meta name="mobile-web-app-capable" content="yes">
+<title>MB + ACV Protocol Tracker</title>
+
+<!-- PWA Manifest inline -->
+<script>
+const manifestData = {
+  name: "MB + ACV Protocol Tracker",
+  short_name: "Protocol",
+  description: "Methylene Blue + ACV + 16:8 IF daily tracker",
+  start_url: "./",
+  display: "standalone",
+  background_color: "#070a07",
+  theme_color: "#070a07",
+  orientation: "portrait",
+  icons: [
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' rx='32' fill='%23070a07'/%3E%3Ctext x='96' y='120' font-size='100' text-anchor='middle' fill='%234ade80'%3E%F0%9F%94%B5%3C/text%3E%3C/svg%3E", sizes: "192x192", type: "image/svg+xml" },
+    { src: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'%3E%3Crect width='512' height='512' rx='80' fill='%23070a07'/%3E%3Ctext x='256' y='320' font-size='280' text-anchor='middle' fill='%234ade80'%3E%F0%9F%94%B5%3C/text%3E%3C/svg%3E", sizes: "512x512", type: "image/svg+xml" }
+  ]
+};
+const blob = new Blob([JSON.stringify(manifestData)], {type: 'application/json'});
+const manifestURL = URL.createObjectURL(blob);
+document.write('<link rel="manifest" href="' + manifestURL + '">');
+</script>
+
+<!-- Apple touch icon -->
+<link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'%3E%3Crect width='180' height='180' rx='40' fill='%23070a07'/%3E%3Ctext x='90' y='115' font-size='90' text-anchor='middle' fill='%234ade80'%3E%F0%9F%94%B5%3C/text%3E%3C/svg%3E">
+
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  :root {
+    --bg: #070a07;
+    --bg2: #0d150d;
+    --bg3: #0f1a0f;
+    --border: #1a2e1a;
+    --border2: #1a1f1a;
+    --green: #4ade80;
+    --green-dim: #166534;
+    --green-mid: #2a5a2a;
+    --text: #ddd4c0;
+    --muted: #555;
+    --dark: #333;
+    --blue-bg: #080d18;
+    --blue-border: #1a2a4a;
+    --blue: #4a6abe;
+  }
+  html, body {
+    font-family: 'Courier New', Courier, monospace;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+    min-height: 100dvh;
+    overflow-x: hidden;
+  }
+  .app { max-width: 520px; margin: 0 auto; min-height: 100dvh; display: flex; flex-direction: column; }
+
+  /* Header */
+  .header {
+    background: linear-gradient(160deg, #0a160a 0%, var(--bg) 100%);
+    border-bottom: 1px solid var(--border);
+    padding: env(safe-area-inset-top, 12px) 20px 0;
+    padding-top: max(env(safe-area-inset-top, 0px), 16px);
+    position: sticky; top: 0; z-index: 100;
+  }
+  .header-top { display: flex; justify-content: space-between; align-items: flex-start; padding-bottom: 14px; }
+  .header-eyebrow { font-size: 9px; letter-spacing: .35em; color: var(--green-mid); margin-bottom: 5px; }
+  .header-title { font-size: 20px; font-weight: 900; letter-spacing: .05em; line-height: 1.1; }
+  .header-title span { color: var(--green); }
+  .streak-box {
+    text-align: center; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 10px 16px;
+  }
+  .streak-num { font-size: 24px; font-weight: 900; transition: color .3s; }
+  .streak-label { font-size: 9px; letter-spacing: .2em; color: #3a6a3a; }
+
+  /* Tabs */
+  .tabs { display: flex; border-bottom: 1px solid #1a2a1a; }
+  .tab-btn {
+    background: none; border: none; border-bottom: 2px solid transparent;
+    color: #444; padding: 10px 16px; font-size: 10px; letter-spacing: .2em;
+    cursor: pointer; font-family: inherit; font-weight: 400;
+    transition: all .15s; margin-bottom: -1px;
+  }
+  .tab-btn.active { color: var(--green); border-bottom-color: var(--green); font-weight: 700; }
+  .save-flash { margin-left: auto; font-size: 9px; color: var(--green); letter-spacing: .15em; align-self: center; padding-right: 4px; opacity: 0; transition: opacity .2s; }
+  .save-flash.show { opacity: 1; }
+
+  /* Content */
+  .content { flex: 1; padding: 20px 20px calc(env(safe-area-inset-bottom, 0px) + 30px); }
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  /* Score card */
+  .score-card {
+    display: flex; align-items: center; gap: 18px;
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px; margin-bottom: 18px;
+  }
+  .score-ring-wrap { flex-shrink: 0; }
+  .score-label { font-size: 10px; color: #3a6a3a; letter-spacing: .15em; margin-bottom: 5px; }
+  .score-status { font-size: 14px; font-weight: 700; color: var(--text); }
+  .score-sub { font-size: 11px; color: #444; margin-top: 3px; }
+
+  /* Check-in items */
+  .checkin-list { display: grid; gap: 8px; }
+  .checkin-btn {
+    display: flex; align-items: center; gap: 14px;
+    background: #0d100d; border: 1px solid var(--border2);
+    border-radius: 8px; padding: 14px 16px;
+    cursor: pointer; text-align: left; width: 100%;
+    transition: all .15s; font-family: inherit;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .checkin-btn.done { background: #0d1f0d; border-color: #2a5a2a; }
+  .checkin-btn:active { transform: scale(.98); }
+  .cb-box {
+    width: 22px; height: 22px; border-radius: 5px; flex-shrink: 0;
+    background: #0a0f0a; border: 2px solid #2a3a2a;
+    display: flex; align-items: center; justify-content: center;
+    transition: all .15s;
+  }
+  .checkin-btn.done .cb-box { background: var(--green-dim); border-color: var(--green); }
+  .cb-check { color: var(--green); font-size: 13px; font-weight: 900; display: none; }
+  .checkin-btn.done .cb-check { display: block; }
+  .cb-label { flex: 1; font-size: 13px; color: #888; letter-spacing: .05em; transition: color .15s; }
+  .checkin-btn.done .cb-label { color: #86efac; font-weight: 700; }
+  .cb-pts { font-size: 11px; font-weight: 700; color: #2a3a2a; letter-spacing: .1em; transition: color .15s; }
+  .checkin-btn.done .cb-pts { color: var(--green); }
+
+  /* Tip box */
+  .tip-box {
+    margin-top: 18px; background: #080d08; border: 1px solid #141e14;
+    border-radius: 8px; padding: 12px 16px;
+  }
+  .tip-label { font-size: 9px; letter-spacing: .25em; color: #2a4a2a; margin-bottom: 6px; }
+  .tip-text { font-size: 11px; color: var(--muted); line-height: 1.7; }
+
+  /* Stats */
+  .stats-row { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 22px; }
+  .stat-box {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 10px; text-align: center;
+  }
+  .stat-num { font-size: 22px; font-weight: 900; color: var(--green); }
+  .stat-label { font-size: 8px; letter-spacing: .2em; color: var(--green-mid); margin-top: 3px; }
+
+  /* Calendar */
+  .cal-box {
+    background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 16px 18px; margin-bottom: 18px;
+  }
+  .cal-title { font-size: 9px; letter-spacing: .25em; color: #2a5a2a; margin-bottom: 12px; }
+  .cal-grid { display: flex; flex-wrap: wrap; gap: 5px; }
+  .cal-dot {
+    width: 16px; height: 16px; border-radius: 3px;
+    background: #111; border: 2px solid transparent;
+    cursor: default; transition: background .2s;
+    position: relative;
+  }
+  .cal-dot.today { border-color: var(--green); }
+  .cal-dot.score-low { background: #7c2d12; }
+  .cal-dot.score-mid { background: #854d0e; }
+  .cal-dot.score-high { background: #166534; }
+  .cal-legend { display: flex; gap: 14px; margin-top: 12px; font-size: 9px; color: #333; letter-spacing: .1em; flex-wrap: wrap; }
+  .cal-legend span { display: flex; align-items: center; gap: 4px; }
+  .dot-swatch { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+
+  /* Log */
+  .log-title { font-size: 9px; letter-spacing: .25em; color: #2a5a2a; margin-bottom: 10px; }
+  .log-empty { font-size: 12px; color: #333; text-align: center; padding: 30px 0; }
+  .log-list { display: grid; gap: 8px; }
+  .log-item {
+    background: #0d100d; border: 1px solid var(--border2);
+    border-radius: 7px; padding: 12px 14px;
+  }
+  .log-header { display: flex; justify-content: space-between; margin-bottom: 7px; }
+  .log-date { font-size: 11px; color: #666; letter-spacing: .1em; }
+  .log-score { font-size: 12px; font-weight: 700; }
+  .log-icons { display: flex; flex-wrap: wrap; gap: 5px; }
+  .log-icon {
+    font-size: 10px; padding: 2px 7px; border-radius: 3px;
+    background: #0a0a0a; color: #222; border: 1px solid #111;
+  }
+  .log-icon.done { background: #0f1f0f; color: #4a9e4a; border-color: #1a3a1a; }
+
+  /* Protocol */
+  .proto-note { color: #444; font-size: 11px; letter-spacing: .1em; margin-bottom: 18px; }
+  .timeline { position: relative; }
+  .timeline-line { position: absolute; left: 60px; top: 0; bottom: 0; width: 1px; background: #1a2a1a; }
+  .tl-row { display: flex; gap: 14px; position: relative; margin-bottom: 6px; }
+  .tl-time { width: 50px; flex-shrink: 0; text-align: right; font-size: 9px; color: #333; padding-top: 17px; letter-spacing: .05em; }
+  .tl-dot-wrap { width: 20px; flex-shrink: 0; display: flex; flex-direction: column; align-items: center; }
+  .tl-dot { width: 9px; height: 9px; border-radius: 50%; margin-top: 19px; flex-shrink: 0; }
+  .tl-dot.fasting { background: #1a2a1a; border: 2px solid #2a4a2a; }
+  .tl-dot.eating { background: var(--green); border: 2px solid var(--green); }
+  .tl-card { flex: 1; border-radius: 6px; padding: 11px 14px; margin-bottom: 7px; }
+  .tl-card.fasting { background: #0a0d0a; border: 1px solid #141a14; }
+  .tl-card.eating { background: var(--bg2); border: 1px solid #1e3a1e; }
+  .tl-label { font-size: 11px; font-weight: 700; letter-spacing: .15em; margin-bottom: 3px; }
+  .tl-card.fasting .tl-label { color: #2a4a2a; }
+  .tl-card.eating .tl-label { color: var(--green); }
+  .tl-detail { font-size: 11px; color: var(--muted); line-height: 1.5; }
+
+  .mb-warning {
+    margin-top: 16px; background: var(--blue-bg);
+    border: 1px solid var(--blue-border); border-radius: 8px; padding: 14px 16px;
+  }
+  .mb-warn-label { font-size: 9px; letter-spacing: .25em; color: var(--blue); margin-bottom: 6px; }
+  .mb-warn-text { font-size: 11px; color: #5a6a8a; line-height: 1.7; }
+
+  /* Install banner */
+  .install-banner {
+    display: none; background: var(--bg2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 14px 16px; margin-bottom: 18px;
+    align-items: center; gap: 12px;
+  }
+  .install-banner.show { display: flex; }
+  .install-icon { font-size: 24px; flex-shrink: 0; }
+  .install-text { flex: 1; font-size: 11px; color: #888; line-height: 1.5; }
+  .install-text strong { color: var(--text); }
+  .install-btn {
+    background: var(--green-dim); border: 1px solid var(--green);
+    color: var(--green); border-radius: 6px; padding: 8px 14px;
+    font-size: 10px; font-family: inherit; letter-spacing: .1em;
+    cursor: pointer; white-space: nowrap; flex-shrink: 0;
+  }
+</style>
+</head>
+<body>
+<div class="app">
+  <!-- Header -->
+  <div class="header">
+    <div class="header-top">
+      <div>
+        <div class="header-eyebrow">◆ MB + ACV + 16:8</div>
+        <div class="header-title">PROTOCOL<br><span>TRACKER</span></div>
+      </div>
+      <div class="streak-box">
+        <div class="streak-num" id="streakNum">0</div>
+        <div class="streak-label">DAY STREAK</div>
+      </div>
+    </div>
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('today')">TODAY</button>
+      <button class="tab-btn" onclick="switchTab('history')">HISTORY</button>
+      <button class="tab-btn" onclick="switchTab('protocol')">PROTOCOL</button>
+      <div class="save-flash" id="saveFlash">✓ SAVED</div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- TODAY -->
+    <div class="panel active" id="panel-today">
+      <!-- Install banner (iOS) -->
+      <div class="install-banner" id="installBanner">
+        <div class="install-icon">📲</div>
+        <div class="install-text"><strong>Add to Home Screen</strong><br>Tap the share button → "Add to Home Screen"</div>
+        <button class="install-btn" onclick="dismissInstall()">GOT IT</button>
+      </div>
+
+      <!-- Score ring -->
+      <div class="score-card">
+        <div class="score-ring-wrap">
+          <svg id="scoreRing" width="88" height="88" style="transform:rotate(-90deg)">
+            <circle cx="44" cy="44" r="36" fill="none" stroke="#111" stroke-width="7"/>
+            <circle id="ringArc" cx="44" cy="44" r="36" fill="none" stroke="#1a2a1a"
+              stroke-width="7" stroke-dasharray="0 226" stroke-linecap="round"
+              style="transition:stroke-dasharray .5s ease, stroke .3s ease"/>
+            <text id="ringScore" x="44" y="45" text-anchor="middle" dominant-baseline="middle"
+              style="fill:#333;font-size:18px;font-weight:900;font-family:'Courier New',monospace;transform:rotate(90deg);transform-origin:44px 44px">0</text>
+            <text x="44" y="58" text-anchor="middle" dominant-baseline="middle"
+              style="fill:#444;font-size:9px;font-family:'Courier New',monospace;transform:rotate(90deg);transform-origin:44px 44px">/14</text>
+          </svg>
+        </div>
+        <div>
+          <div class="score-label" id="todayDateLabel">—</div>
+          <div class="score-status" id="scoreStatus">Start checking in →</div>
+          <div class="score-sub" id="scoreSub">0/14 pts · 0/7 tasks</div>
+        </div>
+      </div>
+
+      <!-- Checkins -->
+      <div class="checkin-list" id="checkinList"></div>
+
+      <!-- Tip -->
+      <div class="tip-box">
+        <div class="tip-label">💡 TODAY'S REMINDER</div>
+        <div class="tip-text" id="tipText">Loading tip...</div>
+      </div>
+    </div>
+
+    <!-- HISTORY -->
+    <div class="panel" id="panel-history">
+      <div class="stats-row">
+        <div class="stat-box"><div class="stat-num" id="statTotal">0</div><div class="stat-label">TOTAL DAYS</div></div>
+        <div class="stat-box"><div class="stat-num" id="statPerfect">0</div><div class="stat-label">PERFECT DAYS</div></div>
+        <div class="stat-box"><div class="stat-num" id="statAvg">0</div><div class="stat-label">AVG SCORE</div></div>
+      </div>
+      <div class="cal-box">
+        <div class="cal-title">LAST 30 DAYS</div>
+        <div class="cal-grid" id="calGrid"></div>
+        <div class="cal-legend">
+          <span><span class="dot-swatch" style="background:#111;border:1px solid #333"></span> none</span>
+          <span><span class="dot-swatch" style="background:#7c2d12"></span> &lt;60%</span>
+          <span><span class="dot-swatch" style="background:#854d0e"></span> 60–84%</span>
+          <span><span class="dot-swatch" style="background:#166534"></span> 85–100%</span>
+          <span style="margin-left:auto"><span class="dot-swatch" style="background:#111;border:2px solid #4ade80"></span> today</span>
+        </div>
+      </div>
+      <div class="log-title">RECENT LOG</div>
+      <div id="logList" class="log-list"></div>
+    </div>
+
+    <!-- PROTOCOL -->
+    <div class="panel" id="panel-protocol">
+      <div class="proto-note">EATING WINDOW: 12PM → 8PM &nbsp;·&nbsp; FAST: 8PM → 12PM (16 HRS)</div>
+      <div class="timeline">
+        <div class="timeline-line"></div>
+        <div id="scheduleList"></div>
+      </div>
+      <div class="mb-warning">
+        <div class="mb-warn-label">⚠️ MB SAFETY</div>
+        <div class="mb-warn-text">Pharmaceutical/USP grade only. Start 0.5mg/kg body weight. Do NOT combine with SSRIs or MAOIs — risk of serotonin syndrome. Blue urine/tongue = normal. 3–5x per week max, not every day.</div>
+      </div>
+    </div>
+
+  </div><!-- /content -->
+</div><!-- /app -->
+
+<script>
+// ─── Data ──────────────────────────────────────────────────────────
+const CHECKINS = [
+  { id: "fast",       label: "Kept the 16:8 fast",             icon: "🌙", points: 3 },
+  { id: "acv_am",     label: "Morning ACV",                    icon: "💧", points: 1 },
+  { id: "mb",         label: "Methylene Blue dose",            icon: "🔵", points: 2 },
+  { id: "break_fast", label: "Clean break-fast meal",          icon: "🍳", points: 2 },
+  { id: "main_meal",  label: "Budget main meal",               icon: "🥘", points: 2 },
+  { id: "acv_pm",     label: "Evening ACV",                    icon: "🍎", points: 1 },
+  { id: "no_junk",    label: "Zero junk / no eating like an asshole", icon: "✊", points: 3 },
+];
+const MAX_PTS = CHECKINS.reduce((a,c) => a + c.points, 0);
+
+const SCHEDULE = [
+  { time: "7:00a", label: "RISE",           icon: "💧", fasting: true,  detail: "16oz water + 1 tbsp ACV in 8oz water. Extends fast, stabilizes blood sugar." },
+  { time: "8:00a", label: "CAFFEINE",       icon: "☕", fasting: true,  detail: "Black coffee or green tea only. No cream, no sweeteners." },
+  { time: "11:00a", label: "METHYLENE BLUE", icon: "🔵", fasting: true, detail: "2–4 drops in 6oz water. Empty stomach. 3–5x/week." },
+  { time: "12:00p", label: "BREAK FAST",    icon: "🍳", fasting: false, detail: "Protein + fat first. Eggs, sardines, tuna + greens." },
+  { time: "5:00p",  label: "MAIN MEAL",     icon: "🥘", fasting: false, detail: "Lentils, rice + beans, cabbage stir fry, or oats. Season hard." },
+  { time: "7:45p",  label: "ACV CLOSE",     icon: "🍎", fasting: false, detail: "1 tbsp ACV in water before window closes." },
+  { time: "8:00p",  label: "FAST BEGINS",   icon: "🌙", fasting: true,  detail: "Water and herbal tea only until noon. Let autophagy run." },
+];
+
+const TIPS = [
+  "Batch cook lentils + rice on Sunday. 20 min feeds you all week.",
+  "Cabbage tacos: leaf + scrambled egg + hot sauce + lime. Actually slaps.",
+  "Add ACV to lentil soup or rice. Barely noticeable, nutritionally stacks.",
+  "Bone broth during the fast kills hunger without breaking it.",
+  "Season hard: smoked paprika, cumin, garlic powder — each under $2 and last months.",
+  "Canned sardines on a bed of sautéed cabbage with hot sauce = real food.",
+  "MB pee is blue-green. Normal. Don't panic.",
+  "If you break the fast, break it with protein + fat, never sugar.",
+  "The streak only breaks if you hit fewer than 4 tasks. One bad meal doesn't kill it.",
+  "Dilute ACV always — straight ACV erodes tooth enamel over time.",
+];
+
+// ─── Storage ───────────────────────────────────────────────────────
+const KEY = "mb_acv_v1";
+function load() { try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch { return {}; } }
+function save(d) { try { localStorage.setItem(KEY, JSON.stringify(d)); } catch {} }
+let DATA = load();
+
+// ─── Helpers ───────────────────────────────────────────────────────
+function todayKey() { return new Date().toISOString().split("T")[0]; }
+function getScore(entry) {
+  if (!entry) return 0;
+  return CHECKINS.reduce((s,c) => s + (entry[c.id] ? c.points : 0), 0);
+}
+function getStreak(data) {
+  let streak = 0, d = new Date();
+  while (true) {
+    const key = d.toISOString().split("T")[0];
+    if (getScore(data[key]) >= 4) { streak++; d.setDate(d.getDate()-1); }
+    else break;
+  }
+  return streak;
+}
+function fmtDate(key) {
+  return new Date(key + "T12:00:00").toLocaleDateString("en-US", { month: "short", day: "numeric" });
+}
+function last30() {
+  const days = [];
+  for (let i = 29; i >= 0; i--) {
+    const d = new Date(); d.setDate(d.getDate()-i);
+    days.push(d.toISOString().split("T")[0]);
+  }
+  return days;
+}
+
+// ─── Render ────────────────────────────────────────────────────────
+function renderCheckins() {
+  const today = todayKey();
+  const entry = DATA[today] || {};
+  const list = document.getElementById("checkinList");
+  list.innerHTML = "";
+  CHECKINS.forEach(c => {
+    const done = !!entry[c.id];
+    const btn = document.createElement("button");
+    btn.className = "checkin-btn" + (done ? " done" : "");
+    btn.innerHTML = `
+      <div class="cb-box"><span class="cb-check">✓</span></div>
+      <div class="cb-label">${c.icon} ${c.label}</div>
+      <div class="cb-pts">+${c.points}</div>
+    `;
+    btn.addEventListener("click", () => toggle(c.id));
+    list.appendChild(btn);
+  });
+}
+
+function renderScore() {
+  const today = todayKey();
+  const entry = DATA[today] || {};
+  const score = getScore(entry);
+  const pct = score / MAX_PTS;
+  const checked = CHECKINS.filter(c => entry[c.id]).length;
+
+  // Ring
+  const circ = 2 * Math.PI * 36;
+  const arc = document.getElementById("ringArc");
+  arc.setAttribute("stroke-dasharray", `${pct * circ} ${circ}`);
+  const color = pct >= .85 ? "#4ade80" : pct >= .6 ? "#facc15" : score > 0 ? "#f97316" : "#1a2a1a";
+  arc.setAttribute("stroke", color);
+  const ringScore = document.getElementById("ringScore");
+  ringScore.textContent = score;
+  ringScore.style.fill = color;
+
+  // Labels
+  const dateLabel = document.getElementById("todayDateLabel");
+  dateLabel.textContent = new Date().toLocaleDateString("en-US", { weekday:"long", month:"long", day:"numeric" }).toUpperCase();
+
+  const statusEl = document.getElementById("scoreStatus");
+  statusEl.textContent = score === MAX_PTS ? "🔥 Perfect Day!" :
+    pct >= .85 ? "💪 Crushing it" :
+    pct >= .6  ? "👍 Solid day" :
+    score > 0  ? "📍 Keep going" : "Start checking in →";
+
+  document.getElementById("scoreSub").textContent = `${score}/${MAX_PTS} pts · ${checked}/${CHECKINS.length} tasks`;
+
+  // Streak
+  const streak = getStreak(DATA);
+  const sn = document.getElementById("streakNum");
+  sn.textContent = streak;
+  sn.style.color = streak > 0 ? "#4ade80" : "#333";
+}
+
+function renderHistory() {
+  const entries = Object.entries(DATA);
+  const scores = entries.map(([,e]) => getScore(e));
+  const total = entries.length;
+  const perfect = scores.filter(s => s === MAX_PTS).length;
+  const avg = total > 0 ? (scores.reduce((a,b)=>a+b,0)/total).toFixed(1) : 0;
+
+  document.getElementById("statTotal").textContent = total;
+  document.getElementById("statPerfect").textContent = perfect;
+  document.getElementById("statAvg").textContent = avg;
+
+  // Calendar
+  const today = todayKey();
+  const grid = document.getElementById("calGrid");
+  grid.innerHTML = "";
+  last30().forEach(key => {
+    const score = getScore(DATA[key]);
+    const pct = score / MAX_PTS;
+    const dot = document.createElement("div");
+    dot.className = "cal-dot" +
+      (key === today ? " today" : "") +
+      (score === 0 ? "" : pct >= .85 ? " score-high" : pct >= .6 ? " score-mid" : " score-low");
+    dot.title = `${fmtDate(key)}: ${score}/${MAX_PTS}`;
+    grid.appendChild(dot);
+  });
+
+  // Log
+  const logList = document.getElementById("logList");
+  const sorted = Object.entries(DATA).sort((a,b) => b[0].localeCompare(a[0])).slice(0,14);
+  if (sorted.length === 0) {
+    logList.innerHTML = '<div class="log-empty">No entries yet. Start checking in today.</div>';
+    return;
+  }
+  logList.innerHTML = sorted.map(([key, entry]) => {
+    const score = getScore(entry);
+    const pct = score / MAX_PTS;
+    const color = pct >= .85 ? "#4ade80" : pct >= .6 ? "#facc15" : "#f97316";
+    const icons = CHECKINS.map(c =>
+      `<span class="log-icon${entry[c.id] ? " done" : ""}">${c.icon}</span>`
+    ).join("");
+    return `<div class="log-item">
+      <div class="log-header">
+        <div class="log-date">${key === today ? "TODAY" : fmtDate(key).toUpperCase()}</div>
+        <div class="log-score" style="color:${color}">${score}/${MAX_PTS} pts</div>
+      </div>
+      <div class="log-icons">${icons}</div>
+    </div>`;
+  }).join("");
+}
+
+function renderSchedule() {
+  const list = document.getElementById("scheduleList");
+  list.innerHTML = SCHEDULE.map(item => `
+    <div class="tl-row">
+      <div class="tl-time">${item.time}</div>
+      <div class="tl-dot-wrap"><div class="tl-dot ${item.fasting ? 'fasting' : 'eating'}"></div></div>
+      <div class="tl-card ${item.fasting ? 'fasting' : 'eating'}">
+        <div class="tl-label">${item.icon} ${item.label}</div>
+        <div class="tl-detail">${item.detail}</div>
+      </div>
+    </div>
+  `).join("");
+}
+
+function renderTip() {
+  const dayOfYear = Math.floor((new Date() - new Date(new Date().getFullYear(), 0, 0)) / 86400000);
+  document.getElementById("tipText").textContent = TIPS[dayOfYear % TIPS.length];
+}
+
+// ─── Toggle ────────────────────────────────────────────────────────
+function toggle(id) {
+  const today = todayKey();
+  if (!DATA[today]) DATA[today] = {};
+  DATA[today][id] = !DATA[today][id];
+  save(DATA);
+  renderCheckins();
+  renderScore();
+
+  // Flash saved
+  const flash = document.getElementById("saveFlash");
+  flash.classList.add("show");
+  setTimeout(() => flash.classList.remove("show"), 1500);
+}
+
+// ─── Tabs ──────────────────────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll(".panel").forEach(p => p.classList.remove("active"));
+  document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
+  document.getElementById("panel-" + name).classList.add("active");
+  event.target.classList.add("active");
+  if (name === "history") renderHistory();
+}
+
+// ─── Install banner (iOS hint) ─────────────────────────────────────
+function dismissInstall() {
+  document.getElementById("installBanner").classList.remove("show");
+  localStorage.setItem("install_dismissed", "1");
+}
+
+function checkInstallBanner() {
+  const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  const isStandalone = window.navigator.standalone === true;
+  const dismissed = localStorage.getItem("install_dismissed");
+  if (isIOS && !isStandalone && !dismissed) {
+    document.getElementById("installBanner").classList.add("show");
+  }
+}
+
+// ─── PWA Service Worker (inline) ──────────────────────────────────
+if ("serviceWorker" in navigator) {
+  const swCode = `
+    const CACHE = 'protocol-v1';
+    self.addEventListener('install', e => {
+      e.waitUntil(caches.open(CACHE).then(c => c.addAll(['/'])));
+      self.skipWaiting();
+    });
+    self.addEventListener('fetch', e => {
+      e.respondWith(caches.match(e.request).then(r => r || fetch(e.request).catch(() => caches.match('/'))));
+    });
+  `;
+  const swBlob = new Blob([swCode], { type: "application/javascript" });
+  const swURL = URL.createObjectURL(swBlob);
+  navigator.serviceWorker.register(swURL).catch(() => {});
+}
+
+// ─── Init ──────────────────────────────────────────────────────────
+renderCheckins();
+renderScore();
+renderSchedule();
+renderTip();
+checkInstallBanner();
+</script>
+</body>
+</html>
